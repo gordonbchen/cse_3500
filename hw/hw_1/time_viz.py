@@ -29,17 +29,14 @@ def time_seams(
 
 if __name__ == "__main__":
     small_images = [create_random_image(s) for s in range(1, 14)]
-    large_images = [create_random_image(100 * s) for s in range(1, 13)]
-    given_images = list(
-        map(
-            ResizeableImage,
-            ("sunset_small.png", "sunset_full.png", "cat_fortress_small.jpg"),
-        )
-    )
-
-    plt.plot(*time_seams(given_images, dp=True), "r.-", label="DP Given")
-    plt.plot(*time_seams(small_images + large_images, dp=True), "g.-", label="DP")
     plt.plot(*time_seams(small_images, dp=False), "b.-", label="Recur")
+
+    large_images = [create_random_image(100 * s) for s in range(1, 13)]
+    plt.plot(*time_seams(small_images + large_images, dp=True), "g.-", label="DP")
+
+    image_names = ("sunset_small.png", "sunset_full.png", "cat_fortress_small.jpg")
+    given_images = list(map(ResizeableImage, image_names))
+    plt.plot(*time_seams(given_images, dp=True), "r.-", label="DP Given")
 
     plt.title("Times for Computing Best Vertical Seam")
     plt.xlabel("Image Height (pixels)")
