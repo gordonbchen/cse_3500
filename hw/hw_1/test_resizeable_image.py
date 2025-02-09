@@ -1,5 +1,7 @@
 import unittest
 import sys
+import numpy as np
+from PIL import Image
 from resizeable_image import ResizeableImage
 
 class TestImage(unittest.TestCase):
@@ -25,6 +27,14 @@ class TestImage(unittest.TestCase):
         # Make sure the energy of the seam matches what we expect.
         total = sum([image.energy(coord[0], coord[1]) for coord in seam])
         self.assertEqual(total, expected_cost)
-            
+    
+    def test_dp_recur_same(self):
+        for size in range(5, 12):
+            pixels = np.random.randint(0, 256, size=(size, size, 3)).astype(np.uint8)
+            image = ResizeableImage(Image.fromarray(pixels))
+            dp_seam = image.best_seam(dp=True)
+            recur_seam = image.best_seam(dp=False)
+            self.assertEqual(dp_seam, recur_seam, "DP and recur seams do not match")
+
 if __name__ == '__main__':
     unittest.main(argv = sys.argv + ['--verbose'])
