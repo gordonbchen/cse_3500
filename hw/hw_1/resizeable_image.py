@@ -30,7 +30,7 @@ class ResizeableImage(ImageMatrix):
         # Backtrack.
         seam = [(min_i, self.height - 1)]
         for j in reversed(range(self.height - 1)):
-            seam.append((min_ind_table[*seam[-1]], j))
+            seam.append((min_ind_table[seam[-1]], j))
         return seam
     
     def _get_cached_energy(self, i: int, j: int, energy_cache: np.ndarray) -> int:
