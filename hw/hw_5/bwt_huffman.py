@@ -6,6 +6,7 @@ import argparse
 from operator import itemgetter
 from functools import partial
 from collections import Counter
+from heapq import heappush, heappop, heapify
 
 try:
     import cPickle as pickle
@@ -18,51 +19,99 @@ termchar = 17 # you can assume the byte 17 does not appear in the input file
 # and returns a tuple (enc,\ ring) in which enc is the ASCII representation of the 
 # Huffman-encoded message (e.g. "1001011") and ring is your ``decoder ring'' needed 
 # to decompress that message.
-def encode(msg):    
-    raise NotImplementedError
+def encode(msg: bytes) -> tuple[str, dict[str, int]]:
+    counts = Counter(msg)
+    freq_heap = [(v, (k,)) for (k, v) in counts.items()]
+    heapify(freq_heap)
+
+    codes = {k: "" for k in counts.keys()}
+    while len(freq_heap) > 1:
+        left_count, left = heappop(freq_heap)
+        right_count, right = heappop(freq_heap)
+        
+        for k in left:
+            codes[k] = "0" + codes[k]
+        for k in right:
+            codes[k] = "1" + codes[k]
+
+        count = left_count + right_count
+        combined = left + right
+        heappush(freq_heap, (count, combined))
+
+    encoded = "".join(codes[i] for i in msg)
+    # NOTE: decoderRing is the inverse of codes, maps from codes to msg ints.
+    decoderRing = {v: k for (k, v) in codes.items()}
+    return (encoded, decoderRing)
 
 # This takes a string, cmsg, which must contain only 0s and 1s, and your 
 # representation of the ``decoder ring'' ring, and returns a bytearray msg which 
 # is the decompressed message. 
-def decode(cmsg, decoderRing):
-    # Creates an array with the appropriate type so that the message can be decoded.
+def decode(cmsg: str, decoderRing: dict[str, int]) -> bytearray:
     byteMsg = bytearray()
-    
-    raise NotImplementedError
+    curr_code = ""
+
+    for i in cmsg:
+        curr_code += i
+        if curr_code in decoderRing:
+            byteMsg.append(decoderRing[curr_code])
+            curr_code = ""
+
+    return byteMsg
 
 # This takes a sequence of bytes over which you can iterate, msg, and returns a tuple (compressed, ring) 
 # in which compressed is a bytearray (containing the Huffman-coded message in binary, 
 # and ring is again the ``decoder ring'' needed to decompress the message.
-def compress(msg, useBWT):
-
+def compress(msg: bytes, useBWT: bool) -> tuple[bytearray, dict[str, int]]:
     if useBWT:
         msg = bwt(msg)
         msg = mtf(msg)
 
-    # Initializes an array to hold the compressed message.
-    compressed = bytearray()
+    encoded, decoderRing = encode(msg)
+    padding = (8 - (len(encoded) % 8)) % 8
+    padded = encoded + ("0" * padding)
     
-    raise NotImplementedError
+    # Compressed: 1 byte of # padding bits, message, padding bits.
+    compressed = bytearray([padding] + [int(padded[i:i+8], base=2) for i in range(0, len(padded), 8)])
+    return compressed, decoderRing
 
 # This takes a sequence of bytes over which you can iterate containing the Huffman-coded message, and the 
 # decoder ring needed to decompress it.  It returns the bytearray which is the decompressed message. 
-def decompress(msg, decoderRing, useBWT):
-    # Creates an array with the appropriate type so that the message can be decoded.
-    byteArray = bytearray(msg)
-    
+def decompress(msg: bytes, decoderRing: dict[str, int], useBWT: bool) -> bytearray:
+    padding = msg[0]
+    binary = "".join(format(byte, "08b") for byte in bytearray(msg[1:]))
+    decompressedMsg = decode(binary[:-padding], decoderRing)
+
     # before you return, you must invert the move-to-front and BWT if applicable
     # here, decompressed message should be the return value from decode()
     if useBWT:
         decompressedMsg = imtf(decompressedMsg)
         decompressedMsg = ibwt(decompressedMsg)
 
-    raise NotImplementedError
+    return decompressedMsg
 
 # memory efficient iBWT
-def ibwt(msg):
-    # I would work with a bytearray to store the IBWT output
-    raise NotImplementedError
+def ibwt(msg: bytearray) -> bytearray:
+    first = sorted(msg)
+    first_ranks = {}
+    for (i, c) in enumerate(first):
+        if c not in first_ranks:
+            first_ranks[c] = []
+        first_ranks[c].append(i)
 
+    counts = {}
+    ranks = []
+    for c in msg:
+        rank = counts.get(c, 0)
+        ranks.append(rank)
+        counts[c] = rank + 1
+
+    recon = bytearray()
+    i = first.index(termchar)
+    for _ in range(len(msg)):
+        recon.append(first[i])
+        i = first_ranks[msg[i]][ranks[i]]
+    recon.reverse()
+    return recon[:-1]  # remove term char.
 
 # Burrows-Wheeler Transform fncs
 def radix_sort(values, key, step=0):
@@ -142,7 +191,7 @@ def imtf(compressed_msg):
 if __name__=='__main__':
 
     # argparse is an excellent library for parsing arguments to a python program
-    parser = argparse.ArgumentParser(description='<Insert a cool name for your compression algorithm> compresses '
+    parser = argparse.ArgumentParser(description='Dianoga (Star Wars reference) compresses '
                                                  'binary and plain text files using the Burrows-Wheeler transform, '
                                                  'move-to-front coding, and Huffman coding.')
     group = parser.add_mutually_exclusive_group(required=True)
