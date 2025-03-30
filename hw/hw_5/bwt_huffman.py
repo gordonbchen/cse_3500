@@ -79,7 +79,7 @@ def compress(msg: bytes, useBWT: bool) -> tuple[bytearray, dict[str, int]]:
 def decompress(msg: bytes, decoderRing: dict[str, int], useBWT: bool) -> bytearray:
     padding = msg[0]
     binary = "".join(format(byte, "08b") for byte in bytearray(msg[1:]))
-    decompressedMsg = decode(binary[:-padding], decoderRing)
+    decompressedMsg = decode(binary[:len(binary)-padding], decoderRing)
 
     # before you return, you must invert the move-to-front and BWT if applicable
     # here, decompressed message should be the return value from decode()
